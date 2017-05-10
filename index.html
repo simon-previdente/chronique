@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <title>Chronique</title>
+    <style>
+    * {
+        font-size: 16px;
+    }
+    button {
+      margin: 1em;
+      padding: 1em;
+    }
+    #displayData {
+      max-width: 100%;
+      overflow-x: auto;
+      margin: 3em auto 0 auto;
+    }
+    table tr {
+      text-align: center;
+    }
+
+    #importExport-area {
+      width: 100%;
+      min-height: 10em;
+    }
+  </style>
+  </head>
+  <body>
+    <div id="buttonsList">
+    </div>
+    <div id="displayData">
+    </div>
+    <div id="buttonCreation">
+      <input type="text" id="buttonCreation-input" />
+      <button id="buttonCreation-button">Ajouter</button>
+    </div>
+    <div id="importExport">
+      <textarea id="importExport-area"></textarea>
+      <button  id="importExport-button">Importer</button>
+    </div>
+    <a href="#" id="mailLink">Envoyer par mail</a>
+
+    <script>
+      var data = {}
+
+      function slugify(string) {
+        console.log('slugify');
+        return string
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^\w\-]+/g, '')
+          .replace(/\-\-+/g, '-')
+          .replace(/^-+/, '')
+          .replace(/-+$/, '')
+      }
+
+      function save() {
+        console.log('save');
+        area = document.getElementById('importExport-area');
+        localStorage.setItem('ergoData', area.value);
+      }
+
+      function displayData() {
+        console.log('displayData');
+        // Times datas
+        times = [];
+        Object.keys(data).map(function(key, index) {
+          times = times.concat(data[key].dates);
+        });
+        times.sort();
+
+        div = document.getElementById('displayData');
+        div.innerHTML = '';
+        table = document.createElement('table');
+        table.border = 1;
+
+        // THEAD with times
+        thead = document.createElement('thead');
+        tr = document.createElement('tr');
+        th = document.createElement('th');
+        th.innerText = "Temps";
+        tr.appendChild(th);
+        times.forEach(function(time) {
+          th = document.createElement('th');
+          date = new Date(time);
+          th.innerText = date.getHours() + 'h' + date.getMinutes() +'min' + date.getSeconds();
+          tr.appendChild(th);
+        })
+        thead.appendChild(tr);
+        table.appendChild(thead);
+
+        // TBODY
+        tbody = document.createElement('tbody');
+        Object.keys(data).map(function(key, index) {
+          tr = document.createElement('tr');
+
+          th = document.createElement('th');
+          th.innerText = data[key].label;
+          tr.appendChild(th);
+
+          i = 0;
+          data[key].dates.sort();
+          data[key].dates.forEach(function(time) {
+            dest = times.indexOf(time);
+            for (var j = i; j < dest; j++) {
+              td = document.createElement('td');
+              tr.appendChild(td);
+            }
+            td = document.createElement('td');
+            td.innerText = "x";
+            tr.appendChild(td);
+            i = j+1;
+          });
+          for (var j = i; j < times.length; j++) {
+            td = document.createElement('td');
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        div.appendChild(table);
+      }
+
+      function refreshImportExportArea() {
+        console.log('refreshImportExportArea');
+
+        area = document.getElementById('importExport-area');
+        area.value = JSON.stringify(data);
+
+        mail_link = document.getElementById('mailLink');
+        mail_link.href = 'mailto:?body='+area.value;
+        save();
+      }
+
+      function newButton() {
+        console.log('newButton2');
+
+        input = document.getElementById('buttonCreation-input');
+        slugified_value = slugify(input.value);
+        if(slugified_value.length == 0) {
+          return;
+        }
+        if(slugified_value in data) {
+          return;
+        }
+        console.log('>>> new data!!');
+        data[slugified_value] = {
+          'label': input.value,
+          'dates': []
+        };
+        console.log('...');
+        input.value = "";
+        refreshImportExportArea();
+        refreshButtonsList();
+      }
+
+      function refreshButtonsList() {
+        console.log('refreshButtonsList');
+
+        buttons = document.getElementById('buttonsList');
+        buttons.innerHTML = '';
+        Object.keys(data).map(function(key, index) {
+          button = document.createElement('button');
+          button.id = key;
+          button.textContent = data[key].label;
+          button.addEventListener('click', function() {
+            data[this.id]['dates'] = data[this.id]['dates'].concat([new Date().getTime()]);
+            refreshImportExportArea();
+            displayData();
+          });
+          buttons.appendChild(button);
+        });
+        displayData();
+        refreshImportExportArea();
+      }
+
+      function importData() {
+        console.log('importData');
+
+        area = document.getElementById('importExport-area');
+        try {
+          data_imported = JSON.parse(area.value);
+          data = data_imported;
+          refreshButtonsList();
+        } catch(e) {
+          console.log('Erreur', e);
+        }
+      }
+
+      function init() {
+        console.log('init');
+        data_stored = localStorage.getItem('ergoData');
+        if(data_stored == null) {
+          data = {
+            'event1': {
+              'label': 'Évènement 1',
+              'dates': []
+            },
+            'event2': {
+              'label': 'Évènement 2',
+              'dates': []
+            },
+            'event3': {
+              'label': 'Évènement 3',
+              'dates': []
+            },
+          };
+        } else {
+          data = JSON.parse(data_stored);
+        }
+        refreshButtonsList();
+        document.getElementById('buttonCreation-button').addEventListener('click', newButton);
+        document.getElementById('importExport-button').addEventListener('click', importData);
+      }
+
+      init();
+    </script>
+  </body>
+</html>
