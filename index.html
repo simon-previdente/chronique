@@ -86,8 +86,7 @@
         tr.appendChild(th);
         times.forEach(function(time) {
           th = document.createElement('th');
-          date = new Date(time);
-          th.innerText = date.getHours() + 'h' + date.getMinutes() +'min' + date.getSeconds();
+          th.innerText = time;
           tr.appendChild(th);
         })
         thead.appendChild(tr);
@@ -111,7 +110,7 @@
               tr.appendChild(td);
             }
             td = document.createElement('td');
-            td.innerText = "x";
+            td.innerText = index+1;
             tr.appendChild(td);
             i = j+1;
           });
