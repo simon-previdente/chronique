@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no">
     <title>Chronique</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.14/c3.min.css">
     <style>
     * {
         font-size: 16px;
@@ -11,6 +12,10 @@
     button {
       margin: 1em;
       padding: 1em;
+    }
+    #chart {
+      height: 500px;
+      max-width: 100%;
     }
     #displayData {
       max-width: 100%;
@@ -30,6 +35,8 @@
   <body>
     <div id="buttonsList">
     </div>
+    <div id="chart">
+    </div>
     <div id="displayData">
     </div>
     <div id="buttonCreation">
@@ -41,7 +48,8 @@
       <button  id="importExport-button">Importer</button>
     </div>
     <a href="#" id="mailLink">Envoyer par mail</a>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.14/c3.min.js" charset="utf-8"></script>
     <script>
       var data = {}
 
@@ -65,6 +73,7 @@
       }
 
       function displayData() {
+        c3_init();
         console.log('displayData');
         // Times datas
         times = [];
@@ -191,6 +200,135 @@
         }
       }
 
+      function c3_init() {
+        console.log('C3 init');
+        if(!!data['cycle-lance']) {
+          if(!data['cycle-termine']) {
+            data['cycle-termine'] = {};
+          }
+          data['cycle-termine']['dates'] = [];
+          for (var i in data['cycle-lance']['dates']) {
+            data['cycle-termine']['dates'][i] = data['cycle-lance']['dates'][i]+120000;
+          }
+        }
+
+        obsKeys = Object.keys(data);
+
+        yValues = new Array(obsKeys.length);
+        for(var i=0; i < yValues.length; i++) {
+          yValues[i] = i;
+        }
+
+        // Dict to array
+        results = []
+        for(o in data) {
+          obs = data[o];
+          for(d in obs['dates']) {
+            date = obs['dates'][d];
+              results.push({'obs': o, 'date': date});
+          }
+        }
+        // Sort array by obj date
+        results.sort(function (a, b) {
+          return a.date - b.date;
+        });
+
+        xValues = [];
+        if(results.length > 0) {
+          l = results[results.length - 1]['date'] - results[0]['date'];
+          l = l / 30 / 60 / 1000;
+          l = Math.round(l);
+          s = Math.round(results[0]['date'] / 1000 / 60 / 60) * 1000 * 60 * 60;
+          xValues = new Array(l);
+          for(var i = 0; i < xValues.length; i++) {
+            xValues[i] = s + i*30*60*1000;
+          }
+        }
+
+
+        // Extract dates from array
+        g_dates = []
+        for(o in results) {
+          g_dates.push(results[o]['date'])
+        }
+        g_dates = ['x'].concat(g_dates);
+
+        // Construct two array
+        g_cycles = [];
+        g_others = [];
+        for(o in results) {
+          obj = results[o];
+          if(['cycle-lance', 'cycle-termine'].indexOf(obj['obs']) >= 0) {
+            g_cycles.push(obsKeys.indexOf(obj['obs']));
+            if(g_others.length > 0)
+              g_others.push(g_others[g_others.length-1]);
+            else
+              g_others.push(null);
+          } else {
+            g_others.push(obsKeys.indexOf(obj['obs']));
+            if(g_cycles.length > 0)
+              g_cycles.push(g_cycles[g_cycles.length-1]);
+            else
+              g_cycles.push(null);
+          }
+        }
+        g_cycles = ['Cycle de lavage'].concat(g_cycles);
+        g_others = ['Activité de l\'opérateur'].concat(g_others);
+
+
+        // Graph
+        var chart = c3.generate({
+            bindto: '#chart',
+            data: {
+                x: 'x',
+                columns: [
+                    g_dates,
+                    g_cycles,
+                    g_others,
+                ],
+                types: {
+                    'Cycle de lavage': 'step',
+                    'Activité de l\'opérateur': 'step',
+                },
+
+            },
+            axis : {
+                x : {
+                    tick: {
+                        values: xValues,
+                        format: function(d) {
+                            var date = new Date(d);
+                            var hours = date.getHours();
+                            var minutes = "0" + date.getMinutes();
+                            var seconds = "0" + date.getSeconds();
+                            var formattedTime = hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2) + ' ('+ d +')';
+                            return formattedTime;
+                        }
+                    }
+                },
+                y : {
+                    tick: {
+                        values: yValues,
+                        format: function (d) {
+                            return data[obsKeys[d]]['label'];
+                        }
+                    }
+                }
+            },
+            line: {
+              step: {
+                type: 'step-after'
+              }
+            },
+            zoom: {
+                enabled: true
+            },
+            legend: {
+              position: 'inset'
+            }
+        });
+      }
+
       function init() {
         console.log('init');
         data_stored = localStorage.getItem('ergoData');
@@ -215,6 +353,7 @@
         refreshButtonsList();
         document.getElementById('buttonCreation-button').addEventListener('click', newButton);
         document.getElementById('importExport-button').addEventListener('click', importData);
+        c3_init();
       }
 
       init();
